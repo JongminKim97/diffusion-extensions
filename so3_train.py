@@ -1,6 +1,7 @@
 import numpy as np
 import torch
 import torch.nn as nn
+import time
 
 from diffusion import SO3Diffusion
 from models import SinusoidalPosEmb, Siren
@@ -54,9 +55,12 @@ BATCH = 64
 if __name__ == "__main__":
     torch.set_anomaly_enabled(True)
     import wandb
-    wandb.init(project='SO3Diffusion', entity='qazwsxal')
-
+    wandb.init(project='SO3Diffusion_x90z90', entity='jongminkim')
+    wandb.run.name = time.strftime('%Y%m%d_%H%M%S',time.localtime(time.time()))
+#    wandb.run.save()
+    starttime=time.time()
     device = torch.device(f"cuda") if torch.cuda.is_available() else torch.device("cpu")
+    print(device)
     net = RotPredict(out_type="skewvec").to(device)
     net.train()
     wandb.watch(net)
@@ -65,17 +69,23 @@ if __name__ == "__main__":
     z90 = torch.tensor([[0.0,-1.0, 0.0],
                         [1.0, 0.0, 0.0],
                         [0.0, 0.0, 1.0]])
-    rotations = torch.stack((z90, z90.T), dim=0).to(device)
-    for i in range(400000):
-            i += 1
-            idx = torch.randint(0,2,(BATCH,), device=device)
-            truepos = rotations[idx]
-            loss = process(truepos)
-            optim.zero_grad()
-            loss.backward()
-            optim.step()
-            if i % 10 == 0:
-                wandb.log({"loss": loss})
-                print(loss.item())
-            if i % 1000 == 0:
-                torch.save(net.state_dict(), "weights/weights_so3.pt")
+    x90 = torch.tensor([[1.0, 0.0, 0.0],
+                        [0.0, 0.0,-1.0],
+                        [0.0, 1.0, 0.0]])
+    angle=x90
+    rotations = torch.stack((z90, z90.T, x90, x90.T), dim=0).to(device)
+    for i in range(50000):
+        i += 1
+        idx = torch.randint(0,4,(BATCH,), device=device)
+        truepos = rotations[idx]
+        loss = process(truepos)
+        optim.zero_grad()
+        loss.backward()
+        optim.step()
+        if i % 100 == 0:
+            wandb.log({"loss": loss})
+            if i % 10000 == 0:
+                print(str(i)+"th step : "+str(loss.item()))
+        if i % 10000 == 0:
+            torch.save(net.state_dict(), "weights/weights_so3_x90z90_50k.pt")
+    print("Total Elapsed Time : "+str(time.time()-starttime))

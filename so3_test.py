@@ -15,13 +15,16 @@ if __name__ == "__main__":
 
 
     device = torch.device(f"cuda") if torch.cuda.is_available() else torch.device("cpu")
+#    device = torch.device("cpu")
+#    print(device)
     net = RotPredict(out_type="skewvec").to(device)
-    net.load_state_dict(torch.load("weights/weights_so3.pt", map_location=device))
+    net.load_state_dict(torch.load("weights/weights_so3_x90z90.pt", map_location=device))
     net.eval()
     process = SO3Diffusion(net, loss_type="skewvec").to(device)
     with torch.no_grad():
         # Initial Haar-Uniform random rotations from QR decomp of normal IID matrix
-        R, _ = torch.qr(torch.randn((BATCH, 3, 3)))
+        R, _ = torch.linalg.qr(torch.randn((BATCH, 3, 3)))
+        R = R.to(device)
         res = torch.zeros((process.num_timesteps, BATCH, 3, 3))
         for i in tqdm(reversed(range(0, process.num_timesteps)),
                       desc='sampling loop time step',
@@ -67,7 +70,7 @@ if __name__ == "__main__":
     fig.subplots_adjust(left=0.1, right=0.9, top=1.0, hspace=0.1)
 
     plt.show()
-    plt.savefig("rotations.eps")
+    plt.savefig("rotations.png")
     out = res[0]
     z90 = torch.tensor([[0.0,-1.0, 0.0],
                         [1.0, 0.0, 0.0],
@@ -78,4 +81,6 @@ if __name__ == "__main__":
     z90stack = torch.stack((z90mangle, z90pangle),dim=0)
     z90best = torch.gather(z90stack, 0, z90close.expand(1, *z90stack.shape[1:]).to(int))[0]
     plt.plot(torch.arange(1000).flip(0), z90best, alpha=0.2, c="#1f77b4")
-    print('aaaaa')
+    plt.show()
+    plt.savefig("2.png")
+    print('done')
