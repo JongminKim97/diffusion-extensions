@@ -9,7 +9,7 @@ from denoising_diffusion_pytorch.denoising_diffusion_pytorch \
     import (extract,
             exists,
             default,
-            noise_like,
+#            noise_like,
             cosine_beta_schedule,
             )
 from tqdm import tqdm
